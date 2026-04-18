@@ -1,4 +1,7 @@
-from ..models import User, Coords, Pereval, PerevalLevel, PerevalImage
+from django.db import transaction
+from django.utils.dateparse import parse_datetime
+
+from ..models import User, Coords, ActivityType, Pereval, PerevalLevel, PerevalImage
 
 
 class PerevalService:
@@ -79,3 +82,44 @@ class PerevalService:
 
         return created_images
 
+    @staticmethod
+    def get_activity_type(activity_title: str | None) -> ActivityType | None:
+        """
+        Возвращает тип активности по названию.
+        """
+        if not activity_title:
+            return None
+
+        activity_type, _ = ActivityType.objects.get_or_create(title=activity_title)
+        return activity_type
+
+    @staticmethod
+    @transaction.atomic
+    def create_pereval(data: dict) -> Pereval:
+        """
+        Создание перевала со всеми связанными сущностями.
+        """
+        user = PerevalService.create_user(data['user'])
+        coords = PerevalService.create_coords(data['coords'])
+        activity_type = PerevalService.get_activity_type(data.get('activity_type'))
+
+        add_time_raw = data.get('add_time')
+        add_time = parse_datetime(add_time_raw) if add_time_raw else None
+
+        pereval = Pereval.objects.create(
+            beauty_title=data.get('beauty_title', ''),
+            title=data['title'],
+            other_titles=data.get('other_titles', ''),
+            connect=data.get('connect', ''),
+            region=data.get('region', ''),
+            add_time=add_time,
+            user=user,
+            coords=coords,
+            activity_type=activity_type,
+            status='new',
+        )
+
+        PerevalService.create_level(pereval, data.get('level', {}))
+        PerevalService.create_images(pereval, data.get('images', []))
+
+        return pereval
