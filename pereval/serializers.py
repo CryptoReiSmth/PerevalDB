@@ -2,6 +2,7 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from rest_framework import serializers
+from .models import Pereval, PerevalImage
 
 
 class UserSerializer(serializers.Serializer):
@@ -53,3 +54,42 @@ class PerevalSubmitSerializer(serializers.Serializer):
     coords = CoordsSerializer()
     level = LevelSerializer(required=False)
     images = ImageSerializer(many=True, required=False)
+
+
+class PerevalImageReadSerializer(serializers.ModelSerializer):
+    data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PerevalImage
+        fields = ('data', 'title')
+
+    def get_data(self, obj):
+        request = self.context.get('request')
+        if obj.image and request:
+            return request.build_absolute_uri(obj.image.url)
+        if obj.image:
+            return obj.image.url
+        return None
+
+
+class PerevalReadSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    coords = CoordsSerializer()
+    level = LevelSerializer()
+    images = PerevalImageReadSerializer(many=True)
+
+    class Meta:
+        model = Pereval
+        fields = (
+            'id',
+            'beauty_title',
+            'title',
+            'other_titles',
+            'connect',
+            'add_time',
+            'user',
+            'coords',
+            'level',
+            'images',
+            'status',
+        )
