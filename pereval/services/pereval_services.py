@@ -123,3 +123,88 @@ class PerevalService:
         PerevalService.create_images(pereval, data.get('images', []))
 
         return pereval
+
+    @staticmethod
+    @transaction.atomic
+    def update_pereval(pereval, data: dict):
+        if pereval.status != 'new':
+            return {
+                'state': 0,
+                'message': 'Редактировать можно только записи со статусом new'
+            }
+
+        if 'user' in data:
+            old_user = pereval.user
+            new_user = data['user']
+
+            if (
+                    old_user.email != new_user.get('email') or
+                    old_user.fam != new_user.get('fam') or
+                    old_user.name != new_user.get('name') or
+                    old_user.otc != new_user.get('otc', '') or
+                    old_user.phone != new_user.get('phone')
+            ):
+                return {
+                    'state': 0,
+                    'message': 'Нельзя изменять ФИО, email и телефон пользователя'
+                }
+
+        pereval.beauty_title = data.get('beauty_title', pereval.beauty_title)
+        pereval.title = data.get('title', pereval.title)
+        pereval.other_titles = data.get('other_titles', pereval.other_titles)
+        pereval.connect = data.get('connect', pereval.connect)
+        pereval.add_time = data.get('add_time', pereval.add_time)
+
+        coords_data = data.get('coords')
+        if coords_data:
+            pereval.coords.latitude = coords_data.get(
+                'latitude',
+                pereval.coords.latitude
+            )
+            pereval.coords.longitude = coords_data.get(
+                'longitude',
+                pereval.coords.longitude
+            )
+            pereval.coords.height = coords_data.get(
+                'height',
+                pereval.coords.height
+            )
+            pereval.coords.save()
+
+        level_data = data.get('level')
+        if level_data:
+            pereval.level.winter = level_data.get(
+                'winter',
+                pereval.level.winter
+            )
+            pereval.level.spring = level_data.get(
+                'spring',
+                pereval.level.spring
+            )
+            pereval.level.summer = level_data.get(
+                'summer',
+                pereval.level.summer
+            )
+            pereval.level.autumn = level_data.get(
+                'autumn',
+                pereval.level.autumn
+            )
+            pereval.level.save()
+
+        images_data = data.get('images')
+        if images_data:
+            pereval.images.all().delete()
+
+            for image_item in images_data:
+                PerevalImage.objects.create(
+                    pereval=pereval,
+                    title=image_item.get('title', ''),
+                    image=image_item['data'],
+                )
+
+        pereval.save()
+
+        return {
+            'state': 1,
+            'message': None
+        }
